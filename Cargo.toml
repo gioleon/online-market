@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "online-market-model",
+    "online-market-data",
+    "online-market-axum"
+]
