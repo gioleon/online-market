@@ -1,14 +1,16 @@
 use dotenv::dotenv;
-use online_market_data::CategoryRepository;
+use online_market_data::{CategoryRepository, UserRepository};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::{env, sync::Arc};
+
 
 mod handler;
 mod router;
 
 pub struct AppState {
     pub db: PgPool,
-    pub category_repository: CategoryRepository
+    pub category_repository: CategoryRepository,
+    pub user_repository: UserRepository
 }
 
 #[tokio::main]
@@ -37,7 +39,8 @@ async fn main() {
     let app_state = Arc::new(
         AppState { 
             db: pool,
-            category_repository: CategoryRepository::new() 
+            category_repository: CategoryRepository::new(),
+            user_repository: UserRepository::new()
         }
     );
 

@@ -3,16 +3,16 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use axum_macros::debug_handler;
 use std::sync::Arc;
 
-use online_market_model::{Category, CategoryResponse};
-use serde::Serialize;
+use online_market_model::Category;
 use serde_json;
 
 use crate::AppState;
 
-#[debug_handler]
+use super::{build_error_response, build_success_multi_response, build_success_response};
+
+
 pub async fn save_category(
     State(app): State<Arc<AppState>>,
     Json(category): Json<Category>,
@@ -46,9 +46,9 @@ pub async fn find_category_by_id(
         }
         Err(error) => match error {
             sqlx::Error::RowNotFound => {
-                let result = build_success_multi_response(Vec::<CategoryResponse>::new());
+                let result = build_error_response(Box::new(error));
 
-                Ok((StatusCode::NOT_FOUND, Json(result)))
+                Err((StatusCode::NOT_FOUND, Json(result)))
             }
             _ => {
                 let result = build_error_response(Box::new(error));
@@ -72,9 +72,9 @@ pub async fn get_all_categories(
         }
         Err(error) => match error {
             sqlx::Error::RowNotFound => {
-                let result = build_success_multi_response(Vec::<CategoryResponse>::new());
+                let result = build_error_response(Box::new(error));
 
-                Ok((StatusCode::NOT_FOUND, Json(result)))
+                Err((StatusCode::NOT_FOUND, Json(result)))
             }
             _ => {
                 let result = build_error_response(Box::new(error));
@@ -83,49 +83,4 @@ pub async fn get_all_categories(
             }
         },
     }
-}
-
-/// Returns a Json with status keys and payload for successful operations
-///
-/// # Argument
-///
-/// * payload - Object will be the value of the payload key. It must implements trait Serialize
-///
-fn build_success_response<T>(payload: T) -> serde_json::Value
-where
-    T: Serialize,
-{
-    serde_json::json!({
-        "status": "success",
-        "result": payload
-    })
-}
-
-/// Returns a Json with status keys and payload for successful operations
-///
-/// # Argument
-///
-/// * payload - List of objects that will be the value of the payload key. Objects must implements trait Serialize
-///
-fn build_success_multi_response<T>(payload: Vec<T>) -> serde_json::Value
-where
-    T: Serialize,
-{
-    serde_json::json!({
-        "status": "success",
-        "result": payload
-    })
-}
-
-/// Returns a Json with status keys and payload for failed operations
-///
-/// # Argument
-///
-/// * payload - Object will be the value of the payload key. It must implements trait Serialize
-///
-fn build_error_response(error: Box<dyn std::error::Error>) -> serde_json::Value {
-    serde_json::json!({
-        "status": "fail",
-        "result": format!("{}", error)
-    })
 }
