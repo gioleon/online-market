@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use online_market_model::{
-    Category, CategoryResponse, Modality, Rate, RateResponse, Roles, Service, ServiceResponse,
-    User, UserResponse, Comment, CommentResponse,
+    Category, CategoryResponse, Comment, CommentResponse, Modality, Rate, RateResponse, Roles,
+    Service, ServiceResponse, User, UserResponse,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -63,6 +63,10 @@ impl CategoryRepository {
                 .fetch_all(conn)
                 .await?;
 
+        if categories.len() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
         Ok(categories)
     }
 }
@@ -96,7 +100,11 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn get_by_dni(&self, dni: &str, conn: &PgPool) -> Result<UserResponse, sqlx::Error> {
+    pub async fn get_by_dni(
+        &self,
+        dni: String,
+        conn: &PgPool,
+    ) -> Result<UserResponse, sqlx::Error> {
         let user = sqlx::query_as!(
             UserResponse,
             r#"SELECT id, dni, email, password, name, date_of_birth, registered_at, is_seller, updated_at, latitude, longitude, contact_number, category_id, rol as "rol: Roles" FROM users WHERE dni = $1"#,
@@ -108,6 +116,52 @@ impl UserRepository {
             Some(user) => Ok(user),
             None => Err(sqlx::Error::RowNotFound),
         }
+    }
+
+    pub async fn get_all(&self, conn: &PgPool) -> Result<Vec<UserResponse>, sqlx::Error> {
+        let user = sqlx::query_as!(
+            UserResponse,
+            r#"SELECT id, dni, email, password, name, date_of_birth, registered_at, is_seller, updated_at, latitude, longitude, contact_number, category_id, rol as "rol: Roles" FROM users"#,
+        ).fetch_all(conn)
+        .await?;
+
+        if user.len() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        Ok(user)
+    }
+
+    pub async fn update_user(&self, user: User, conn: &PgPool) -> Result<UserResponse, sqlx::Error> {
+        let user = sqlx::query_as!(
+            UserResponse,
+            r#"
+                UPDATE users
+                SET 
+                email = $1, 
+                password = $2, 
+                name = $3, 
+                date_of_birth = $4,  
+                updated_at = $5, 
+                contact_number = $6
+                WHERE dni = $7 
+                RETURNING id, dni, email, password, name, date_of_birth, registered_at, is_seller, updated_at, latitude, longitude, contact_number, category_id, rol as "rol: Roles"
+            "#,
+            user.email as String,
+            user.password as String,
+            user.name as String,
+            user.date_of_birth as chrono::NaiveDate,
+            chrono::Utc::now() as chrono::DateTime<chrono::Utc>,
+            user.contact_number as String,
+            user.dni as String
+        ).fetch_optional(conn)
+        .await?;
+        
+        match user {
+            Some(user) => Ok(user),
+            None => Err(sqlx::Error::RowNotFound)
+        }
+
     }
 }
 
@@ -276,10 +330,14 @@ pub struct CommentRepository {}
 
 impl CommentRepository {
     pub fn new() -> Self {
-        CommentRepository {  }
+        CommentRepository {}
     }
 
-    pub async fn save(&self, comment: Comment, conn: &PgPool) -> Result<CommentResponse, sqlx::Error> {
+    pub async fn save(
+        &self,
+        comment: Comment,
+        conn: &PgPool,
+    ) -> Result<CommentResponse, sqlx::Error> {
         let comment = sqlx::query_as!(
             CommentResponse,
             r#"INSERT INTO comments (commentator, commented, comment, created_at)
@@ -288,25 +346,35 @@ impl CommentRepository {
             comment.commentator as String,
             comment.commented as String,
             comment.comment as String,
-            chrono::Utc::now() 
-        ).fetch_one(conn)
+            chrono::Utc::now()
+        )
+        .fetch_one(conn)
         .await?;
 
         Ok(comment)
     }
 
-    pub async fn get_comments_by_commented(&self, commented: String, conn: &PgPool) -> Result<Vec<CommentResponse>, sqlx::Error> {
+    pub async fn get_comments_by_commented(
+        &self,
+        commented: String,
+        conn: &PgPool,
+    ) -> Result<Vec<CommentResponse>, sqlx::Error> {
         let comments = sqlx::query_as!(
             CommentResponse,
             r#"SELECT * FROM comments WHERE commented = $1"#,
             commented as String
-        ).fetch_all(conn)
+        )
+        .fetch_all(conn)
         .await?;
 
         Ok(comments)
     }
 
-    pub async fn update_comment(&self, comment: Comment, conn: &PgPool) -> Result<CommentResponse, sqlx::Error> {
+    pub async fn update_comment(
+        &self,
+        comment: Comment,
+        conn: &PgPool,
+    ) -> Result<CommentResponse, sqlx::Error> {
         let comment = sqlx::query_as!(
             CommentResponse,
             r#"UPDATE comments
@@ -316,15 +384,14 @@ impl CommentRepository {
             WHERE commentator = $3
             AND commented = $4
             RETURNING commentator, commented, comment, created_at, updated_at"#,
-            comment.comment, 
+            comment.comment,
             chrono::Utc::now(),
             comment.commentator,
             comment.commented
-        ).fetch_one(conn)
+        )
+        .fetch_one(conn)
         .await?;
 
         Ok(comment)
     }
-
-
 }
