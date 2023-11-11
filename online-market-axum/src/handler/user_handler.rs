@@ -1,18 +1,69 @@
 use axum::{
-    extract::{Json, Path, State, Query},
+    extract::{Json, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 
+use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
+
+use futures::{SinkExt, StreamExt};
 use online_market_data::{Pagination, PaginationRequest};
 use std::sync::Arc;
+use tokio::sync::mpsc;
 
-use online_market_model::User;
+use online_market_model::{User, UserLocation};
 use serde_json;
 
 use crate::AppState;
 
 use super::{build_error_response, build_success_multi_response, build_success_response};
+
+pub async fn handler_user_location(
+    ws: WebSocketUpgrade<i16, UserLocation>,
+    State(app): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| update_user_location_socket(socket, app))
+}
+
+pub async fn update_user_location_socket(socket: WebSocket<i16, UserLocation>, app: Arc<AppState>) {
+    // create channel if time this function is called
+    let (tx, mut rx) = mpsc::unbounded_channel::<UserLocation>();
+
+    // split the new web socket connection in sender and receiver
+    let (mut sender, mut receiver) = socket.split();
+
+    tokio::spawn(async move {
+        while let Some(user_location) = rx.recv().await {
+            let result = app
+                .user_repository
+                .update_location(user_location, &app.db)
+                .await;
+
+            match result {
+                Ok(_) => {
+                    let _ = sender.send(Message::Item(200));
+                }
+                Err(_) => {
+                    let _ = sender.send(Message::Item(500));
+                }
+            }
+        }
+    });
+
+    while let Some(message) = receiver.next().await {
+        match message {
+            Ok(message) => match message {
+                Message::Item(user_location) => {
+                    tx.send(user_location).unwrap();
+                }
+                _ => {}
+            },
+            Err(e) => {
+                println!("{}", e);
+            }
+        }
+    }
+}
 
 #[utoipa::path(
     post,
@@ -26,7 +77,6 @@ pub async fn save_user(
     State(app): State<Arc<AppState>>,
     Json(user): Json<User>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-
     println!("{:?}", user);
     let result = app.user_repository.save(user, &app.db).await;
 
@@ -94,7 +144,7 @@ pub async fn get_all_user(
     // If no per_page or page is provided the default values will be used
     let pagination = Pagination::new(pagination);
 
-    let result = app.user_repository.get_all(pagination,&app.db).await;
+    let result = app.user_repository.get_all(pagination, &app.db).await;
 
     match result {
         Ok(user) => {
@@ -125,16 +175,15 @@ pub async fn get_all_user(
 )]
 pub async fn update_user(
     State(app): State<Arc<AppState>>,
-    Json(user): Json<User>
+    Json(user): Json<User>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let result  = app.user_repository.update_user(user, &app.db).await;
-
+    let result = app.user_repository.update_user(user, &app.db).await;
 
     match result {
         Ok(user) => {
             let response = build_success_response(user);
             Ok((StatusCode::OK, Json(response)))
-        },
+        }
         Err(error) => {
             let response = build_error_response(Box::new(error));
             Err((StatusCode::NOT_FOUND, Json(response)))

@@ -19,7 +19,7 @@ use crate::{
             update_comment,
         },
         rate_handler::{get_rate, get_rates_by_rated, get_rates_by_rater, save_rate, update_rate},
-        user_handler::{get_all_user, get_user_by_dni, save_user, update_user},
+        user_handler::{get_all_user, get_user_by_dni, save_user, update_user, handler_user_location},
     },
     AppState, swagger::ApiDoc,
 };
@@ -38,6 +38,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/category/:id", get(get_category_by_id))
         .route("/category/all", get(get_all_categories))
         .route("/user", post(save_user))
+        .route("/ws/user/update/location", get(handler_user_location))
         .route("/user/:dni", get(get_user_by_dni))
         .route("/user/all", get(get_all_user))
         .route("/user/update", patch(update_user))
