@@ -1,16 +1,18 @@
 use dotenv::dotenv;
-use online_market_data::{CategoryRepository, UserRepository};
+use online_market_data::{CategoryRepository, RateRepository, UserRepository, CommentRepository};
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::{env, sync::Arc};
 
-
-mod handler;
-mod router;
+pub mod handler;
+pub mod router;
+pub mod swagger;
 
 pub struct AppState {
     pub db: PgPool,
     pub category_repository: CategoryRepository,
-    pub user_repository: UserRepository
+    pub user_repository: UserRepository,
+    pub rate_repository: RateRepository,
+    pub comment_repository: CommentRepository,
 }
 
 #[tokio::main]
@@ -36,13 +38,13 @@ async fn main() {
     };
 
     // Creating AppState that will be used in the whole app
-    let app_state = Arc::new(
-        AppState { 
-            db: pool,
-            category_repository: CategoryRepository::new(),
-            user_repository: UserRepository::new()
-        }
-    );
+    let app_state = Arc::new(AppState {
+        db: pool,
+        category_repository: CategoryRepository::new(),
+        user_repository: UserRepository::new(),
+        rate_repository: RateRepository::new(),
+        comment_repository: CommentRepository::new(),
+    });
 
     // Create router and passing the AppState that will be use in the whole app
     let router = router::build_router(app_state);
