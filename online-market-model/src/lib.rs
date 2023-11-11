@@ -1,43 +1,43 @@
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 #[derive(sqlx::Type, Serialize, Deserialize, Debug, ToSchema)]
-#[sqlx(type_name="modality", rename_all="lowercase")]
+#[sqlx(type_name = "modality", rename_all = "lowercase")]
 pub enum Modality {
     Domicilio,
     Presencial,
-    Hibrido
+    Hibrido,
 }
 
 #[derive(sqlx::Type, Serialize, Deserialize, Debug, ToSchema)]
-#[sqlx(type_name="roles", rename_all="lowercase")]
+#[sqlx(type_name = "roles", rename_all = "lowercase")]
 pub enum Roles {
     Admin,
-    User
+    User,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Location {
     pub lat: f64,
-    pub lon: f64
+    pub lon: f64,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct LocationResponse {
     pub lat: f64,
-    pub lon: f64
+    pub lon: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Category {
-    pub name: String
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct CategoryResponse {
     pub id: i64,
-    pub name: String
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -60,7 +60,7 @@ pub struct RateResponse {
 pub struct Comment {
     pub commentator: String,
     pub commented: String,
-    pub comment: String
+    pub comment: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -84,8 +84,15 @@ pub struct User {
     pub latitude: Option<f32>,
     pub longitude: Option<f32>,
     pub contact_number: String,
-    pub category_id: Option<i64>,  
-    pub rol: Roles
+    pub category_id: Option<i64>,
+    pub rol: Roles,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct UserLocation {
+    pub dni: String,
+    pub latitude: f32,
+    pub longitude: f32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,10 +109,9 @@ pub struct UserResponse {
     pub latitude: Option<f32>,
     pub longitude: Option<f32>,
     pub contact_number: String,
-    pub category_id: Option<i64>,  
-    pub rol: Roles
+    pub category_id: Option<i64>,
+    pub rol: Roles,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Service {
@@ -114,7 +120,7 @@ pub struct Service {
     pub category_id: i64,
     pub price: f64,
     pub description: String,
-    pub modality: Modality
+    pub modality: Modality,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,8 +130,5 @@ pub struct ServiceResponse {
     pub category_id: i64,
     pub price: f64,
     pub description: String,
-    pub modality: Modality
+    pub modality: Modality,
 }
-
-
-

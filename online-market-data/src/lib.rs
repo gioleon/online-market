@@ -2,7 +2,7 @@ use std::error::Error;
 
 use online_market_model::{
     Category, CategoryResponse, Comment, CommentResponse, Modality, Rate, RateResponse, Roles,
-    Service, ServiceResponse, User, UserResponse,
+    Service, ServiceResponse, User, UserResponse, UserLocation,
 };
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -202,6 +202,27 @@ impl UserRepository {
             Some(user) => Ok(user),
             None => Err(sqlx::Error::RowNotFound),
         }
+    }
+
+    pub async fn update_location(
+        &self,
+        user_location: UserLocation,
+        conn: &PgPool
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        
+        let sql = r#"UPDATE users
+        SET 
+        latitude = $1, 
+        longitude = $2
+        WHERE dni = $3"#;
+
+        sqlx::query(sql)
+            .bind(user_location.latitude)
+            .bind(user_location.longitude)
+            .bind(user_location.dni)
+            .execute(conn).await?;
+
+        Ok(())
     }
 }
 
