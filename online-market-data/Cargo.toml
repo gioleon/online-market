@@ -12,3 +12,4 @@ sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "postgres"
 tokio = { version = "1.33.0", features = ["full"] }
 uuid = { version = "1.5.0", features = ["serde", "v4"] }
 online-market-model = { path = "../online-market-model" }
+utoipa = "4.0.0"

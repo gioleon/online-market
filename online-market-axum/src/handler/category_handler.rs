@@ -1,8 +1,9 @@
 use axum::{
-    extract::{Json, Path, State},
+    extract::{Json, Path, State, Query},
     http::StatusCode,
     response::IntoResponse,
 };
+use online_market_data::{PaginationRequest, Pagination};
 use std::sync::Arc;
 
 use online_market_model::Category;
@@ -12,7 +13,14 @@ use crate::AppState;
 
 use super::{build_error_response, build_success_multi_response, build_success_response};
 
-
+#[utoipa::path(
+    post,
+    path="/category",
+    responses(
+        (status=201, description = "Category created"),
+        (status=500, description = "Internal error")
+    )
+)]
 pub async fn save_category(
     State(app): State<Arc<AppState>>,
     Json(category): Json<Category>,
@@ -32,7 +40,16 @@ pub async fn save_category(
     }
 }
 
-pub async fn find_category_by_id(
+#[utoipa::path(
+    get,
+    path="/category/{id}",
+    responses(
+        (status=200, description = "Get category by id"),
+        (status=404, description = "Not found"),
+        (status=500, description = "Internal error")
+    )
+)]
+pub async fn get_category_by_id(
     Path(id): Path<i64>,
     State(app): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -59,10 +76,26 @@ pub async fn find_category_by_id(
     }
 }
 
+#[utoipa::path(
+    get,
+    path="/category/all",
+    params(
+        online_market_data::PaginationRequest
+    ),
+    responses(
+        (status=200, description = "Get all categories"),
+        (status=404, description = "Not found")
+    )
+)]
 pub async fn get_all_categories(
     State(app): State<Arc<AppState>>,
+    Query(pagination): Query<PaginationRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let result = app.category_repository.get_all(&app.db).await;
+    // Creation of pagination
+    // If no per_page or page is provided the default values will be used
+    let pagination = Pagination::new(pagination);
+
+    let result = app.category_repository.get_all(pagination, &app.db).await;
 
     match result {
         Ok(categories) => {

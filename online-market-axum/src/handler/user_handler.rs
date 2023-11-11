@@ -1,8 +1,10 @@
 use axum::{
-    extract::{Json, Path, State},
+    extract::{Json, Path, State, Query},
     http::StatusCode,
     response::IntoResponse,
 };
+
+use online_market_data::{Pagination, PaginationRequest};
 use std::sync::Arc;
 
 use online_market_model::User;
@@ -12,10 +14,20 @@ use crate::AppState;
 
 use super::{build_error_response, build_success_multi_response, build_success_response};
 
+#[utoipa::path(
+    post,
+    path="/user",
+    responses(
+        (status=201, description = "User saved"),
+        (status=500, description = "Internal error")
+    )
+)]
 pub async fn save_user(
     State(app): State<Arc<AppState>>,
     Json(user): Json<User>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+
+    println!("{:?}", user);
     let result = app.user_repository.save(user, &app.db).await;
 
     match result {
@@ -30,6 +42,14 @@ pub async fn save_user(
     }
 }
 
+#[utoipa::path(
+    get,
+    path="/user/{dni}",
+    responses(
+        (status=200, description = "Get user by id"),
+        (status=404, description = "No user found")
+    )
+)]
 pub async fn get_user_by_dni(
     Path(dni): Path<String>,
     State(app): State<Arc<AppState>>,
@@ -55,10 +75,26 @@ pub async fn get_user_by_dni(
     }
 }
 
+#[utoipa::path(
+    get,
+    path="/user/all",
+    params(
+        online_market_data::PaginationRequest
+    ),
+    responses(
+        (status=200, description = "Get all users"),
+        (status=404, description = "No user found")
+    )
+)]
 pub async fn get_all_user(
     State(app): State<Arc<AppState>>,
+    Query(pagination): Query<PaginationRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let result = app.user_repository.get_all(&app.db).await;
+    // Creation of pagination
+    // If no per_page or page is provided the default values will be used
+    let pagination = Pagination::new(pagination);
+
+    let result = app.user_repository.get_all(pagination,&app.db).await;
 
     match result {
         Ok(user) => {
@@ -79,6 +115,14 @@ pub async fn get_all_user(
     }
 }
 
+#[utoipa::path(
+    patch,
+    path="/user/update",
+    responses(
+        (status=200, description = "User updated"),
+        (status=404, description = "No user found")
+    )
+)]
 pub async fn update_user(
     State(app): State<Arc<AppState>>,
     Json(user): Json<User>

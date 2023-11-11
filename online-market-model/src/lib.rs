@@ -1,7 +1,8 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
+use utoipa::ToSchema;
 
-#[derive(sqlx::Type, Serialize, Deserialize)]
+#[derive(sqlx::Type, Serialize, Deserialize, Debug, ToSchema)]
 #[sqlx(type_name="modality", rename_all="lowercase")]
 pub enum Modality {
     Domicilio,
@@ -9,7 +10,7 @@ pub enum Modality {
     Hibrido
 }
 
-#[derive(sqlx::Type, Serialize, Deserialize)]
+#[derive(sqlx::Type, Serialize, Deserialize, Debug, ToSchema)]
 #[sqlx(type_name="roles", rename_all="lowercase")]
 pub enum Roles {
     Admin,
@@ -28,7 +29,7 @@ pub struct LocationResponse {
     pub lon: f64
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Category {
     pub name: String
 }
@@ -39,7 +40,7 @@ pub struct CategoryResponse {
     pub name: String
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Rate {
     pub rater: String,
     pub rated: String,
@@ -55,7 +56,7 @@ pub struct RateResponse {
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Comment {
     pub commentator: String,
     pub commented: String,
@@ -71,7 +72,7 @@ pub struct CommentResponse {
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct User {
     pub dni: String,
     pub email: String,
@@ -80,8 +81,8 @@ pub struct User {
     pub date_of_birth: chrono::NaiveDate,
     pub is_seller: bool,
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub latitude: f32,
-    pub longitude: f32,
+    pub latitude: Option<f32>,
+    pub longitude: Option<f32>,
     pub contact_number: String,
     pub category_id: Option<i64>,  
     pub rol: Roles
@@ -98,15 +99,15 @@ pub struct UserResponse {
     pub registered_at: chrono::DateTime<chrono::Utc>,
     pub is_seller: bool,
     pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub latitude: f32,
-    pub longitude: f32,
+    pub latitude: Option<f32>,
+    pub longitude: Option<f32>,
     pub contact_number: String,
     pub category_id: Option<i64>,  
     pub rol: Roles
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct Service {
     pub id: Option<Uuid>,
     pub user_id: String,
@@ -116,7 +117,7 @@ pub struct Service {
     pub modality: Modality
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceResponse {
     pub id: Uuid,
     pub user_id: String,

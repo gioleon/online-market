@@ -3,6 +3,8 @@ use serde::Serialize;
 
 pub mod category_handler;
 pub mod user_handler;
+pub mod rate_handler;
+pub mod comment_handler;
 
 
 /// Returns a Json with status keys and payload for successful operations

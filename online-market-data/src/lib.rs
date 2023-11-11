@@ -4,12 +4,35 @@ use online_market_model::{
     Category, CategoryResponse, Comment, CommentResponse, Modality, Rate, RateResponse, Roles,
     Service, ServiceResponse, User, UserResponse,
 };
+use serde::Deserialize;
 use sqlx::PgPool;
+use utoipa::IntoParams;
 use uuid::Uuid;
 
 use errors::NoIdProvided;
 
 mod errors;
+
+#[derive(Deserialize, IntoParams)]
+pub struct PaginationRequest {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+}
+
+#[derive(Debug)]
+pub struct Pagination {
+    pub page: i64,
+    pub per_page: i64,
+}
+
+impl Pagination {
+    pub fn new(pagination_request: PaginationRequest) -> Self {
+        Pagination {
+            page: pagination_request.page.unwrap_or(1),
+            per_page: pagination_request.per_page.unwrap_or(25),
+        }
+    }
+}
 
 pub struct CategoryRepository {}
 
@@ -56,12 +79,20 @@ impl CategoryRepository {
         }
     }
 
-    pub async fn get_all(&self, conn: &PgPool) -> Result<Vec<CategoryResponse>, sqlx::Error> {
+    pub async fn get_all(
+        &self,
+        pagination: Pagination,
+        conn: &PgPool,
+    ) -> Result<Vec<CategoryResponse>, sqlx::Error> {
         // saving it to the database
-        let categories: Vec<CategoryResponse> =
-            sqlx::query_as!(CategoryResponse, r#"SELECT * FROM categories"#,)
-                .fetch_all(conn)
-                .await?;
+        let categories: Vec<CategoryResponse> = sqlx::query_as!(
+            CategoryResponse,
+            r#"SELECT * FROM categories LIMIT $1 OFFSET $2"#,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
+        )
+        .fetch_all(conn)
+        .await?;
 
         if categories.len() == 0 {
             return Err(sqlx::Error::RowNotFound);
@@ -118,10 +149,16 @@ impl UserRepository {
         }
     }
 
-    pub async fn get_all(&self, conn: &PgPool) -> Result<Vec<UserResponse>, sqlx::Error> {
+    pub async fn get_all(
+        &self,
+        pagination: Pagination,
+        conn: &PgPool,
+    ) -> Result<Vec<UserResponse>, sqlx::Error> {
         let user = sqlx::query_as!(
             UserResponse,
-            r#"SELECT id, dni, email, password, name, date_of_birth, registered_at, is_seller, updated_at, latitude, longitude, contact_number, category_id, rol as "rol: Roles" FROM users"#,
+            r#"SELECT id, dni, email, password, name, date_of_birth, registered_at, is_seller, updated_at, latitude, longitude, contact_number, category_id, rol as "rol: Roles" FROM users LIMIT $1 OFFSET $2"#,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
         ).fetch_all(conn)
         .await?;
 
@@ -132,7 +169,11 @@ impl UserRepository {
         Ok(user)
     }
 
-    pub async fn update_user(&self, user: User, conn: &PgPool) -> Result<UserResponse, sqlx::Error> {
+    pub async fn update_user(
+        &self,
+        user: User,
+        conn: &PgPool,
+    ) -> Result<UserResponse, sqlx::Error> {
         let user = sqlx::query_as!(
             UserResponse,
             r#"
@@ -156,12 +197,11 @@ impl UserRepository {
             user.dni as String
         ).fetch_optional(conn)
         .await?;
-        
+
         match user {
             Some(user) => Ok(user),
-            None => Err(sqlx::Error::RowNotFound)
+            None => Err(sqlx::Error::RowNotFound),
         }
-
     }
 }
 
@@ -268,15 +308,40 @@ impl RateRepository {
         Ok(rate)
     }
 
+    pub async fn get_rate(
+        &self,
+        rater: String,
+        rated: String,
+        conn: &PgPool,
+    ) -> Result<RateResponse, sqlx::Error> {
+        let rates = sqlx::query_as!(
+            RateResponse,
+            r#"SELECT * FROM rates WHERE rated = $1 AND rater = $2"#,
+            rated as String,
+            rater as String
+        )
+        .fetch_optional(conn)
+        .await?;
+
+        match rates {
+            Some(rates) => Ok(rates),
+            None => Err(sqlx::Error::RowNotFound),
+        }
+    }
+
     pub async fn get_rates_by_rated(
         &self,
         rated: String,
+        pagination: Pagination,
         conn: &PgPool,
     ) -> Result<Vec<RateResponse>, sqlx::Error> {
         let rates = sqlx::query_as!(
             RateResponse,
-            r#"SELECT * FROM rates WHERE rated = $1"#,
-            rated as String
+            r#"SELECT * FROM rates WHERE rated = $1
+            LIMIT $2 OFFSET $3"#,
+            rated as String,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
         )
         .fetch_all(conn)
         .await?;
@@ -287,12 +352,15 @@ impl RateRepository {
     pub async fn get_rates_by_rater(
         &self,
         rater: String,
+        pagination: Pagination,
         conn: &PgPool,
     ) -> Result<Vec<RateResponse>, sqlx::Error> {
         let rates = sqlx::query_as!(
             RateResponse,
-            r#"SELECT * FROM rates WHERE rater = $1"#,
-            rater as String
+            r#"SELECT * FROM rates WHERE rater = $1 LIMIT $2 OFFSET $3"#,
+            rater as String,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
         )
         .fetch_all(conn)
         .await?;
@@ -354,15 +422,58 @@ impl CommentRepository {
         Ok(comment)
     }
 
+    pub async fn get_comment(
+        &self,
+        commentator: String,
+        commented: String,
+        conn: &PgPool,
+    ) -> Result<CommentResponse, sqlx::Error> {
+        let comment = sqlx::query_as!(
+            CommentResponse,
+            r#"SELECT * FROM comments WHERE commented = $1 AND commentator = $2"#,
+            commentator as String,
+            commented as String
+        )
+        .fetch_optional(conn)
+        .await?;
+
+        match comment {
+            Some(comment) => Ok(comment),
+            None => Err(sqlx::Error::RowNotFound),
+        }
+    }
+
     pub async fn get_comments_by_commented(
         &self,
         commented: String,
+        pagination: Pagination,
         conn: &PgPool,
     ) -> Result<Vec<CommentResponse>, sqlx::Error> {
         let comments = sqlx::query_as!(
             CommentResponse,
-            r#"SELECT * FROM comments WHERE commented = $1"#,
-            commented as String
+            r#"SELECT * FROM comments WHERE commented = $1 LIMIT $2 OFFSET $3"#,
+            commented as String,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
+        )
+        .fetch_all(conn)
+        .await?;
+
+        Ok(comments)
+    }
+
+    pub async fn get_comments_by_commentator(
+        &self,
+        commentator: String,
+        pagination: Pagination,
+        conn: &PgPool,
+    ) -> Result<Vec<CommentResponse>, sqlx::Error> {
+        let comments = sqlx::query_as!(
+            CommentResponse,
+            r#"SELECT * FROM comments WHERE commentator = $1 LIMIT $2 OFFSET $3"#,
+            commentator as String,
+            pagination.per_page as i64,
+            (pagination.page - 1) * pagination.per_page as i64
         )
         .fetch_all(conn)
         .await?;
