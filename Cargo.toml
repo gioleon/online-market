@@ -1,4 +1,5 @@
 [workspace]
+resorver = "2"
 
 members = [
     "online-market-model",
